@@ -1,0 +1,41 @@
+// Inspired by Brendan Gregg runqlat.bt
+// To see which tasks are put into wait state after some specific time . I hardcode 5000 usecs by default
+
+#include <linux/sched.h>
+
+BEGIN
+{
+        printf("Tracing involuntary context switches... Hit Ctrl-C to end.\n");
+}
+
+tracepoint:sched:sched_switch
+{
+        $TASK_RUNNING = 0;
+        if (args->prev_state == $TASK_RUNNING) {
+                @qtime[args->prev_pid] = nsecs;
+                //Save key when thread is involunarily put to wait  ( was runnable but then preempted for another task )
+                //To calculate delta for the new sched_switch , when that thread is switched to use CPU
+        }
+
+        $ns = @qtime[args->next_pid];
+        if ($ns) { // if the tid which is going to run is the tid which is put to wait before, that's why we have its key in our map
+                @usecs_wait[comm] = (nsecs - $ns) / 1000;
+                if (@usecs_wait[comm] > 50000) {
+                        //printf("%s %d %s %s\n",comm,@usecs_wait[comm],kstack(),ustack());
+                        @wait_usecs[comm,tid]=lhist(@usecs_wait[comm],50000,5000000,50000);
+                }
+        }
+        delete(@qtime[args->next_pid]);
+}
+
+i:s:1 {
+    //print output every second
+    print(@wait_usecs);
+    clear(@wait_usecs);
+    //clear map for other run cycle
+}
+END
+{
+        clear(@qtime);
+        clear(@usecs_wait);
+}

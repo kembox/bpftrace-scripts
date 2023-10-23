@@ -1,0 +1,29 @@
+BEGIN
+{
+        printf("Tracing direct reclaim and its latency\n");
+}
+
+tracepoint:vmscan:mm_vmscan_direct_reclaim_begin
+{
+        @start[tid] = nsecs;
+}
+tracepoint:vmscan:mm_vmscan_direct_reclaim_end / @start[tid] /
+{
+        @usecs[comm,tid]  = (nsecs - @start[tid]);
+        delete(@start[tid]);
+}
+
+i:s:1 {
+        if ( @usecs[comm,tid] ) {
+                time("%H:%M:%S: ");
+                print(@usecs);
+                clear(@usecs);
+        }
+}
+
+
+END
+{
+        clear(@start);
+        clear(@usecs);
+}

@@ -1,0 +1,38 @@
+#!/usr/bin/bpftrace
+
+BEGIN
+{
+        printf("Tracing vfs_write, group them per [container name,[file name],command,pid]   Ctrl-C to end\n");
+        printf("Usage: bpftrace $0 [file]\n");
+}
+
+kprobe:vfs_write
+{
+        $file=(struct file *)arg0;
+        $dentry=$file->f_path.dentry;
+
+
+        @cntf[curtask->nsproxy->uts_ns->name.nodename,comm,pid,str($dentry->d_name.name)] = count();
+        @cnt[curtask->nsproxy->uts_ns->name.nodename,comm,pid] = count();
+}
+
+interval:s:1 {
+        time("%H:%M:%S:\n");
+
+        // Some how i can't put this condition right when we setup map
+        // Thus can't write to 1 map only but do 2 instead of pick the correct one to print this way :(
+
+        if ( str($1) == "file" ) {
+            print(@cntf);
+        } else {
+            print(@cnt);
+        }
+        clear(@cnt);
+        clear(@cntf);
+        printf("=============================================================================================\n\n");
+}
+
+END {
+    clear(@cnt);
+    clear(@cntf);
+}

@@ -1,0 +1,7 @@
+BEGIN {
+        printf("Tracing balance_dirty_pages's throttling\n");
+}
+
+tracepoint:writeback:balance_dirty_pages {
+        printf("%s pause: %d\n",comm,args->pause);
+}

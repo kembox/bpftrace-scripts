@@ -1,0 +1,12 @@
+#include <linux/fs.h>
+#include <linux/path.h>
+#include <linux/dcache.h>
+
+kprobe:vfs_write / comm == "bash"  / {
+$name=((struct qstr)((struct dentry)(((struct path *)(((struct file *)arg0)->f_path))->dentry)).d_name).name;
+
+if (str($name) != "1" && str($name) != "2" && str($name) != "0" && str($name) != "" )
+    {
+    printf("%s, PID %d is writing to file %s\n",comm,pid,str($name));
+    }
+}

@@ -1,0 +1,1 @@
+kprobe:__blockdev_direct_IO {printf("%s %s %d %s\n",kstack,ustack(perf),pid,comm);}'

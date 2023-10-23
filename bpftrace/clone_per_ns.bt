@@ -1,0 +1,28 @@
+// Trace specific syscalls and group them by namespaces 
+
+#!/usr/bin/env bpftrace
+
+#include <linux/sched.h>
+#include <linux/nsproxy.h>
+#include <linux/utsname.h>
+
+
+tracepoint:syscalls:sys_enter_clone
+{
+        $parent_task = (struct task_struct *)curtask->parent;
+
+
+        //Getting hostname where the parent'id process belongs to
+        $parent_container_name = ($parent_task->nsproxy->uts_ns->name).nodename;
+        @clone_per_c_name[$parent_container_name,comm]=count();
+}
+
+interval:s:1 {
+        time("%H:%M:%S:\n");
+        print(@clone_per_c_name);
+        clear(@clone_per_c_name);
+}
+END
+{
+        delete(@clone_per_c_name)
+}
